@@ -1,0 +1,160 @@
+﻿@implements IDisposable
+
+@inject NavigationManager NavigationManager
+@using CUG_ONLINE_COURSES.Data
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.StudentRole}")]
+
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">CUG_ONLINE_COURSES</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <AuthorizeView>
+            <Authorized>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
+                    </NavLink>
+                </div>
+                @if (context.User.IsInRole(AuthenticationInitalData.SuperAdminRole))
+                {
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/usermanager" Match="NavLinkMatch.All">
+                            <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Manage Users
+                        </NavLink>
+                    </div>
+
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/coursemanager" Match="NavLinkMatch.All">
+
+                            <span class="icon-wrapper">
+                                <Icon Name="IconName.Book" class="nav-menu" aria-hidden="true" />
+                            </span>
+                            Manage Courses
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/library" Match="NavLinkMatch.All">
+                            <span class="icon-wrapper">
+                                <Icon Name="IconName.BookFill" class="nav-menu" aria-hidden="true" />
+                            </span> Manage Library
+                       
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/rolesmanager">
+                            <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span>Manage Roles
+                        </NavLink>
+                    </div>
+                    }
+                else if (context.User.IsInRole(AuthenticationInitalData.DeanRole))
+                {
+                
+                }
+                else if (context.User.IsInRole(AuthenticationInitalData.LecturerRole))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/library" Match="NavLinkMatch.All">
+                            <span class="icon-wrapper">
+                                <Icon Name="IconName.BookFill" class="nav-menu" aria-hidden="true" />
+                            </span> Library
+
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/Facultycouse" Match="NavLinkMatch.All">
+                            <span class="icon-wrapper">
+                                <Icon Name="IconName.BookFill" class="nav-menu" aria-hidden="true" />
+                            </span> Manage Result
+
+                        </NavLink>
+                    </div>
+                   
+                }
+                else if (context.User.IsInRole(AuthenticationInitalData.SecretaryRole))
+                {
+                  
+                }
+                else if (context.User.IsInRole(AuthenticationInitalData.StudentRole))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="registeredcourses" Match="NavLinkMatch.All">
+                            <span class="bi bi-book-fill-nav-menu " aria-hidden="true"></span> Registered Courses
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="viewresult" Match="NavLinkMatch.All">
+                            <span class="bi bi-book-fill-nav-menu " aria-hidden="true"></span> View Result
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="studentlibrary" Match="NavLinkMatch.All">
+                            <span class="bi bi-book-fill-nav-menu " aria-hidden="true"></span> Library
+                        </NavLink>
+                    </div>
+                }
+
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Manage">
+                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                        <button type="submit" class="nav-link">
+                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                        </button>
+                    </form>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Register">
+                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Login">
+                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
+

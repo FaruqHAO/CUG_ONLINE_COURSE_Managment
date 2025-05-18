@@ -1,0 +1,75 @@
+﻿@page "/viewresult"
+@rendermode InteractiveServer
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.StudentRole}")]
+@inject IRoleService _roleManagerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<ManageRoles> Logger
+<PageTitle>View Result</PageTitle>
+<div class="card">
+    <div class="card-header">
+        Result
+    </div>
+    <div class="card-body">
+        @if (staffDashboadData == null || !staffDashboadData.Any())
+        {
+            <p><em>Loading or You Have not been assigned a course...</em></p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Course Code</th>
+                        <th>Score</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (course, index) in staffDashboadData.Select((course, i) => (course, i + 1)))
+                    {
+                        <tr>
+
+                            <td>@index</td>
+                            <td>@course.CourseID</td>
+                            <td>@course.Score</td>
+                            <td>@course.Grade</td>
+                           </tr>
+                    }
+
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+
+@code {
+
+
+    private List<StudentResultDto> staffDashboadData;
+    private string? userId;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            staffDashboadData = await _roleManagerService.Getallresult(userId);
+
+            
+        }
+        catch (Exception ex)
+        {
+
+        }
+
+    }
+
+}

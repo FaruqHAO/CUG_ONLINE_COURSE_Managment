@@ -1,0 +1,172 @@
+﻿@page "/Editcourse/{CourseId:int}"
+@rendermode InteractiveServer
+
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole}")]
+
+@inject IRoleService _roleManagerService
+@inject NavigationManager Navigation
+
+<PageTitle>Add/Edit Course</PageTitle>
+<h3>@(CourseId.HasValue ? "Edit Course" : "Add Course")</h3>
+
+@if (Lecturers == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.TopRight" />
+
+    <EditForm Model="CourseDetails" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Course Details Form -->
+        <div class="mb-3">
+            <label class="form-label">Course Code</label>
+            <InputText class="form-control" @bind-Value="CourseDetails.CourseCode" placeholder="Course Code" />
+            <ValidationMessage For="@(() => CourseDetails.CourseCode)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Course Name</label>
+            <InputText class="form-control" @bind-Value="CourseDetails.CourseName" placeholder="Course Name" />
+            <ValidationMessage For="@(() => CourseDetails.CourseName)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Faculty</label>
+            <InputSelect class="form-control" @bind-Value="CourseDetails.Faculty">
+                <option value="">-- Select Faculty --</option>
+                @foreach (var faculty in Faculties)
+                {
+                    <option value="@faculty" selected="@faculty">@faculty</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => CourseDetails.Faculty)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Assigned Lecturer</label>
+            <InputSelect class="form-control" @bind-Value="CourseDetails.AssignedLecturer">
+                <option value="">-- Select Lecturer --</option>
+                @foreach (var lecturer in Lecturers)
+                {
+                    <option value="@lecturer.AdminID" selected="@CourseDetails.AssignedLecturer">@lecturer.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => CourseDetails.AssignedLecturer)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Course Duration</label>
+            <InputSelect class="form-control" @bind-Value="CourseDetails.CourseDuration">
+                <option value="" selected="@CourseDetails.CourseDuration">-- Select Duration --</option>
+                <option value="10 weeks">10 Weeks</option>
+                <option value="1 semester">1 Semester</option>
+                <option value="6 months">6 Months</option>
+                <option value="1 year">1 Year</option>
+                <option value="Custom">Custom</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => CourseDetails.CourseDuration)" />
+        </div>
+       
+
+        <button type="submit" class="btn btn-primary">Save Change</button>
+    </EditForm>
+
+    @if (CourseId.HasValue)
+    {
+        <hr />
+        <h4>Students Registered for This Course</h4>
+
+        <!-- Table for displaying student details -->
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (student, index) in RegisteredStudents.Select((student, i) => (student, i + 1)))
+                {
+                    <tr>
+                        <td>@index</td>
+                        <td>@student.Name</td>
+                        <td>@student.Email</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+}
+
+@code {
+    [Parameter] 
+    public int? CourseId { get; set; }
+    private Course CourseDetails = new Course();
+    private List<Admin> Lecturers;
+    private List<Admin> RegisteredStudents = new List<Admin>();
+    private bool PageLoading;
+
+    // Mock Faculties
+    private List<string> Faculties = new List<string>
+    {
+        "CEMs", "Nursing", "Education", "RS", "EBA",
+    };
+
+    private List<ToastMessage> messages = new List<ToastMessage>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        PageLoading = true;
+        await Task.Delay(100);
+        Lecturers = await _roleManagerService.GetAllStaff();
+
+        if (CourseId.HasValue)
+        {
+            // Fetch existing course details
+            CourseDetails = await _roleManagerService.GetCourseByIdAsync(CourseId.Value);
+           RegisteredStudents = await _roleManagerService.GetStudentsByCourseIdAsync(CourseId.Value);
+        }
+
+        PageLoading = false;
+        ShowMessage(ToastType.Success, $"Staff Data Retrieved successfully!");
+    }
+
+    private async void HandleValidSubmit()
+    {
+        var response = await _roleManagerService.EditCourse(CourseDetails);
+
+        if (response)
+        {
+            ShowMessage(ToastType.Success, $"{(CourseId.HasValue ? "Updated" : "Added")} Course Data Successfully!");
+            // Redirect after a short delay
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/coursemanager"); // Change to actual course list page
+        }
+        else
+        {
+            ShowMessage(ToastType.Danger, $"Course was not {(CourseId.HasValue ? "updated" : "added")} successfully!");
+        }
+    }
+
+    private void ShowMessage(ToastType toastType, string alertMessage) => messages.Add(CreateToastMessage(toastType, alertMessage));
+
+    private ToastMessage CreateToastMessage(ToastType toastType, string alertMessage)
+        => new ToastMessage
+            {
+                Type = toastType,
+                Title = "Notice",
+                HelpText = $"{DateTime.Now}",
+                Message = $"{alertMessage}: {DateTime.Now}",
+            };
+}

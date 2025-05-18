@@ -1,0 +1,84 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@inject ILogger<StudentMarkComponent> Logger
+@inject IRoleService _roleManagerService
+<Toasts class="p-3" AutoHide="true" Delay="4000" Placement="ToastsPlacement.TopRight" />
+<EditForm Model="@markModel" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label>Score</label>
+        <InputNumber @bind-Value="markModel.Score" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Grade</label>
+        <InputSelect @bind-Value="markModel.Grade" class="form-control">
+            <option value="">-- Select Grade --</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="F">F</option>
+        </InputSelect>
+
+    </div>
+
+    <button type="submit" class="btn btn-success">Save Grade</button>
+
+</EditForm>
+
+@code {
+    private Modal modal = default!;
+    [Inject] protected ToastService ToastService { get; set; } = default!;
+   
+    [Parameter] public string StudentId { get; set; } = default!;
+    [Parameter] public string CourseId { get; set; } = default!;
+
+    private StudentMarkModel markModel = new();
+
+    public class StudentMarkModel
+    {
+        [Range(0, 100, ErrorMessage = "Score must be between 0 and 100")]
+        public int Score { get; set; }
+
+        [Required(ErrorMessage = "Grade is required")]
+        public string Grade { get; set; } = string.Empty;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        Console.WriteLine("FORM SUBMITTED"); // Check browser console (F12)
+        Logger.LogInformation($"Saving Score: {markModel.Score}, Grade: {markModel.Grade}, StudentId: {StudentId}, CourseId: {CourseId}");
+
+        var result = new StudentResultDto
+            {
+                studentID = StudentId,
+                CourseID = CourseId,
+                Score = markModel.Score,
+                Grade = markModel.Grade
+            };
+
+        var success = await _roleManagerService.AddStudentResultAsync(result);
+
+        if (success)
+        {
+            Logger.LogInformation("Student result saved successfully.");
+            ToastService.Notify(new(ToastType.Success, $"Grade saved successfully."));
+           
+        }
+        else
+        {
+            ToastService.Notify(new(ToastType.Success, $"Grade saved successfully."));
+            Logger.LogWarning("Failed to save student result.");
+        }
+
+          // Reset or close modal here (optional)
+    }
+
+}

@@ -1,0 +1,129 @@
+﻿ @page "/coursemanager"
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole}")]
+@rendermode InteractiveServer
+
+@using CUG_ONLINE_COURSES.Components.Account
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+
+
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+
+
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-4">
+                <h3>coursemanager</h3>
+            </div>
+            <div class="col-4"></div>
+            <div class="col-4">
+                <button class="btn btn-sm btn-primary float-end" @onclick="NavigateToAddCourse">Add Course</button>
+            </div>
+
+        </div>
+
+    </div>
+    <div class="card-body">
+
+        @if (courses == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Course Code</th>
+                        <th>Course Name</th>
+                        <th>Faculty</th>
+                        <th>Assigned Lecturer</th>
+                        <th>Duration</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (course, index) in courses.Select((course, i) => (course, i + 1)))
+                    {
+                        <tr>
+
+                            <td>@index</td>
+                            <td>@course.CourseCode</td>
+                            <td>@course.CourseName</td>
+                            <td>@course.Faculty</td>
+                            <td>@course.AssignedLecturerName</td>
+                            <td>@course.CourseDuration</td>
+
+                            <td>
+                                <button type="button" class="btn btn-info" @onclick="() => NavigateToEditCourse(course.Id)"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+                                <button type="button" class="btn btn-danger" @onclick="() => DeleteCouse(course.CourseCode)"><i class="bi bi-trash me-1"></i>Delete </button>
+                            </td>
+
+                        </tr>
+                    }
+                  
+                </tbody>
+            </table>
+        }
+
+    </div>
+</div>
+
+
+
+
+@code {
+    List<Course> courses;
+
+    private bool isLoading = true;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            courses = await _roleManagerService.GetAllCoursesAsync();
+       
+            if (courses == null)
+            {
+                courses = new List<Course>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error fetching courses: {ex.Message}");
+        }
+        isLoading = false;
+        StateHasChanged(); // Update UI after data is loaded
+
+    }
+    private void DeleteCouse(string couseCode){
+
+    }
+    private void NavigateToAddCourse()
+    {
+        Navigation.NavigateTo("/Addcourse"); // Replace with your actual route
+
+    }
+    private void NavigateToEditCourse(int courseId)
+    {
+        Navigation.NavigateTo($"/Editcourse/{courseId.ToString()}"); // Navigate to Edit Course page with course code
+    }
+
+
+}

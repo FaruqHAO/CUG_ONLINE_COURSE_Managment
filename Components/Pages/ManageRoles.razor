@@ -1,0 +1,127 @@
+﻿@page "/rolesmanager"
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole}")]
+@rendermode InteractiveServer
+
+@using CUG_ONLINE_COURSES.Components.Account
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+
+
+<PageTitle>Manage Roles</PageTitle>
+
+<h1>Role manager page </h1>
+
+<p>You can manage user roles from this page.</p>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>User name</th>
+                <th class="text-center">Roles</th>
+                <th>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.UserName</td>
+                    @if (user.RoleName == AuthenticationInitalData.SuperAdminRole)
+                    {
+                        <td>
+                            <p class="text-center text-primary">
+                                <b>@AuthenticationInitalData.SuperAdminRole</b>
+                            </p>
+                        </td>
+                        <td></td>
+                    }
+                    else
+                    {
+                        <td>
+                            <select class="form-select col-3" @bind="user.RoleName">
+                                <option value="">no role</option>
+                                @foreach (var role in AuthenticationInitalData.AppRoles.Where(r => r.Name != AuthenticationInitalData.SuperAdminRole))
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+
+                        </td>
+                        <td>
+                            @if (user.Saving)
+                            {
+                                <b>Saving ...</b>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-primary" @onclick="()=>SaveChanges(user)">Save</button>
+                                @if (user.Saved)
+                                {
+                                    <br />
+
+                                    <small class="text-center text-success">Saved</small>
+                                }
+                                @if (user.Error)
+                                {
+                                    <br />
+
+                                    <small class="text-center text-danger">Error</small>
+                                }
+                            }
+
+                        </td>
+
+                    }
+                </tr>
+
+
+            }
+        </tbody>
+    </table>
+}
+@code {
+    List<UserWithRoles> users;
+    private bool PageLoading;
+    protected override async Task OnInitializedAsync()
+    {
+        PageLoading = true;
+        await Task.Delay(100);
+        users = await _roleManagerService.GetUsersWithRolesAsync();
+        PageLoading = false;
+    }
+    private async Task SaveChanges(UserWithRoles user)
+    {
+        user.Saved = false;
+        user.Error = false;
+        user.Saving = true;
+        await Task.Delay(100);
+        var result = await _roleManagerService.SaveUserRoles(user);
+        if (result)
+        {
+            user.Saved = true;
+        }
+        else
+        {
+            user.Error = true;
+        }
+        user.Saving = false;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,155 @@
+﻿@page "/library"
+@rendermode InteractiveServer
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.StudentRole},{AuthenticationInitalData.LecturerRole}")]
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+@inject NavigationManager Navigation
+
+<PageTitle>Manage Library</PageTitle>
+<div class="card">
+    <div class="card-header">
+        <button class="btn btn-sm btn-primary float-end" @onclick="NavigateToAddBooks">Add New</button>
+    </div>
+    <div class="card-body">
+        @if (libraryItems == null || !libraryItems.Any())
+        {
+            <p><em>Loading or no File available...</em></p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th></th>
+                        <th>Course Name</th>
+                        <th>Assigned Lectuer</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (libitem, index) in libraryItems.Select((libitem, i) => (libitem, i + 1)))
+                    {
+                        <tr>
+
+                            <td>@index</td>
+                            <td>@libitem.Title</td>
+                            <td>@libitem.CourseCode</td>
+                            <td>@libitem.Category</td>
+
+                            <td>
+                                <button class="btn btn-info btn-sm" @onclick="() => ViewLibraryItem(libitem.FileUrl)">View</button>
+                                @* <button class="btn btn-warning btn-sm" @onclick="() => EditLibraryItem(libitem.Id)">Edit</button> *@
+                                @if (!string.IsNullOrEmpty(libitem.FileUrl))
+                                {
+                                    <a href="@libitem.FileUrl" download="@libitem.Title" class="btn btn-success btn-sm">Download</a>
+                                }
+                                else
+                                {
+                                    <span class="text-danger">No file</span>
+                                }
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+<!-- PDF and Word Viewer Modal -->
+<Modal @ref="xlModal" title="Extra large modal" Size="ModalSize.ExtraLarge">
+    <HeaderTemplate>View File</HeaderTemplate>
+    <BodyTemplate>
+        @if (!string.IsNullOrEmpty(selectedFileUrl))
+        {
+            if (selectedFileUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                <PdfViewer Url="@selectedFileUrl" Height="600px" />
+            }
+            else if (selectedFileUrl.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+            {
+                <iframe src="https://docs.google.com/gview?url=@selectedFileUrl&embedded=true" width="100%" height="600px"></iframe>
+            }
+            else
+            {
+                <p class="text-danger">Unsupported file format.</p>
+            }
+        }
+        else
+        {
+            <p class="text-danger">file does not exit,contact the Administrator</p>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-secondary" @onclick="() => xlModal.HideAsync()">Close</button>
+    </FooterTemplate>
+</Modal>
+
+@code {
+
+
+    private List<LibraryItem> libraryItems;
+    private string selectedFileUrl = "";
+    private Modal xlModal = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            await FetchLibraryFiles();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching libraryItems: {ex.Message}");
+        }
+    }
+    private async Task FetchLibraryFiles()
+    {
+        try
+        {
+            libraryItems = await _roleManagerService.GetLibraryItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching users: {ex.Message}");
+        }
+    }
+    private void NavigateToAddBooks()
+    {
+        Navigation.NavigateTo("/Add-book"); // Replace with your actual route
+
+    }
+    // private void ViewLibraryItem(int itemId)
+    // {
+    //     Navigation.NavigateTo($"/library/view/{itemId}"); // Navigate to view page
+    // }
+
+    private void EditLibraryItem(int itemId)
+    {
+        Navigation.NavigateTo($"/library/edit/{itemId}"); // Navigate to edit page
+    }
+
+    private void ViewLibraryItem(string fileUrl)
+    {
+        if (!string.IsNullOrEmpty(fileUrl))
+        {
+            selectedFileUrl = fileUrl;
+            xlModal.ShowAsync();
+        }
+        else
+        {
+            selectedFileUrl = "";
+            Logger.LogWarning("Attempted to view a non-existing file.");
+        }
+    }
+
+}
+

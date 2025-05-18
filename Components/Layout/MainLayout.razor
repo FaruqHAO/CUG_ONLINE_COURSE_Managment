@@ -1,0 +1,30 @@
+﻿@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Services
+
+@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <img src="/image/cuglogo.jpg" alt="Logo" class="logo" style="width: 150px; height: 50px;" />
+            <a href="https://cug.edu.gh/" target="_blank">CUG</a>
+        </div>
+
+
+        <article class="content px-4">
+            @Body
+
+        </article>
+    </main>
+
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

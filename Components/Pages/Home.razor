@@ -1,0 +1,245 @@
+﻿@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.StudentRole},{AuthenticationInitalData.LecturerRole},{AuthenticationInitalData.DeanRole},{AuthenticationInitalData.SecretaryRole}")]
+@rendermode InteractiveServer
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@page "/"
+@attribute [Authorize]
+<PageTitle>Home</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+
+    @if (context.User.IsInRole(AuthenticationInitalData.SuperAdminRole))
+    {
+        <h1>Welcome, Super Admin @context.User.Identity?.Name!</h1>
+            <p>You have access to the admin dashboard and advanced settings.</p>
+
+            if (Dashoarddata == null)
+            {
+                <p>Loading...</p>
+            }
+
+            else
+            {
+                <div class="container mt-4">
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <Card class="shadow-sm border-0 bg-primary text-white text-center">
+                                <CardHeader>Total Users</CardHeader>
+                                <CardBody>
+                                    <h3>@Dashoarddata.TotalUser</h3>
+
+                                    <i class="bi bi-people-fill display-4"></i>
+                                </CardBody>
+                            </Card>
+                        </div>
+                        <div class="col-md-3">
+                            <Card class="shadow-sm border-0 bg-primary text-white text-center">
+                                <CardHeader>Total Student</CardHeader>
+                                <CardBody>
+                                    <h3>@Dashoarddata.TotalStudent</h3>
+
+                                    <i class="bi bi-people-fill display-4"></i>
+                                </CardBody>
+                            </Card>
+                        </div>
+                        <div class="col-md-3">
+                            <Card class="shadow-sm border-0 bg-primary text-white text-center">
+                                <CardHeader>Total Staff</CardHeader>
+                                <CardBody>
+                                    <h3>@Dashoarddata.TotalStaff</h3>
+
+                                    <i class="bi bi-people-fill display-4"></i>
+                                </CardBody>
+                            </Card>
+                        </div>
+                        <div class="col-md-3">
+                            <Card class="shadow-sm border-0 bg-success text-white text-center">
+                                <CardHeader>Active Courses</CardHeader>
+                                <CardBody>
+                                    <h3>@Dashoarddata.TotalActiveCourse</h3>
+                                    <i class="bi bi-book-fill display-4"></i>
+                                </CardBody>
+                            </Card>
+                        </div>
+                        <div class="col-md-3">
+                            <Card class="shadow-sm border-0 bg-danger text-white text-center">
+                                <CardHeader>New Messages</CardHeader>
+                                <CardBody>
+                                    <h3>14</h3>
+                                    <i class="bi bi-envelope-fill display-4"></i>
+                                </CardBody>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            }
+           
+    }
+    else if (context.User.IsInRole(AuthenticationInitalData.DeanRole))
+    {
+            <h1>Welcome, Dean @context.User.Identity?.Name!</h1>
+            <p>You have access to the Dean dashboard.</p>
+    }
+
+    else if (context.User.IsInRole(AuthenticationInitalData.LecturerRole))
+    {
+            <h1>Welcome, Lecturer @context.User.Identity?.Name!</h1>
+            <p>You have access to the Lecturer dashboard.</p>
+
+            @if (staffDashboadData == null)
+            {
+                <p>Loading... Please wait.</p>
+            }
+            else if (!staffDashboadData.Any())
+            {
+                <p>You have not been assigned a Course</p>
+            }
+            else
+            {
+                <div class="container mt-4">
+                    <div class="row g-4">
+                        @foreach (var staffdata in staffDashboadData)
+                        {
+                            <div class="col-md-3">
+                                <div class="card shadow-sm border-0">
+                                    <div class="card-header bg-primary text-white text-center">
+                                        @staffdata.CourseName
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <h3>@staffdata.TotalStudents</h3>
+                                        <i class="bi bi-people-fill display-4"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+    }
+    else if (context.User.IsInRole(AuthenticationInitalData.SecretaryRole))
+    {
+            <h1>Welcome, Secretary @context.User.Identity?.Name!</h1>
+            <p>You have access to the Secretary dashboard </p>
+    }
+    else if (context.User.IsInRole(AuthenticationInitalData.StudentRole))
+    {
+            <h1>Welcome, Student @context.User.Identity?.Name!</h1>
+            <div id="facultyCards" class="row">
+            <!-- CEMS Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    
+                    <img src="/image/cems.jpeg" class="card-img-top" alt="CEMS Image">
+                    <div class="card-body">
+                        <h5 class="card-title">CEMS</h5>
+                            <button type="button" class="btn btn-secondary" @onclick='() => NavigateToFacultyCourse("CEMs")'><i class="bi bi-trash me-1"></i>Dashboard </button>
+
+                      
+                    </div>
+                </div>
+            </div>
+            <!-- NURSING Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="/image/cug_nurs.jpg" class="card-img-top" alt="Nursing Image">
+                    <div class="card-body">
+                        <h5 class="card-title">Nursing</h5>
+                            <button type="button" class="btn btn-secondary" @onclick='() => NavigateToFacultyCourse("Nursing")'><i class="bi bi-trash me-1"></i>Dashboard </button>
+
+                       </div>
+                </div>
+            </div>
+            <!-- EDUCATION Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="/image/education.jpeg" class="card-img-top" alt="Education Image">
+                    <div class="card-body">
+                        <h5 class="card-title">Education</h5>
+                            <button type="button" class="btn btn-secondary" @onclick='() => NavigateToFacultyCourse("Education")'><i class="bi bi-trash me-1"></i>Dashboard </button>
+
+                        
+                    </div>
+                </div>
+            </div>
+            <!-- RELIGION Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="/image/religion.jpeg" class="card-img-top" alt="Religion Image">
+                    <div class="card-body">
+                        <h5 class="card-title">Religion</h5>
+                            <button type="button" class="btn btn-secondary" @onclick='() => NavigateToFacultyCourse("Religion")'><i class="bi bi-trash me-1"></i>Dashboard </button>
+
+                      
+                    </div>
+                </div>
+            </div>
+            <!-- IBM Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="/image/accounting.webp" class="card-img-top" alt="IBM Image">
+                    <div class="card-body">
+                        <h5 class="card-title">IBM</h5>
+                            <button type="button" class="btn btn-secondary" @onclick='() => NavigateToFacultyCourse("IBM")'><i class="bi bi-trash me-1"></i>Dashboard </button>
+
+                       
+                </div>
+            </div>
+        </div>
+
+            </div>
+
+
+    }
+   
+    </Authorized>
+    <NotAuthorized>
+        <h1>Access Denied</h1>
+        <p>You are not allowed to view this content. Contact the Administrator</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code{
+    private Dashboard_Data? Dashoarddata;
+    private List<staffDashboad> staffDashboadData;
+    private string? userId;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            if (user.IsInRole(AuthenticationInitalData.LecturerRole))
+            {
+                staffDashboadData = await _roleManagerService.DashboardDataStaff(userId);
+
+            }
+
+
+            Dashoarddata = await _roleManagerService.DashboardData();
+            
+        }
+        catch (Exception ex)
+        {
+          
+        }
+
+    }
+    
+    private void NavigateToFacultyCourse(string facultyid)
+    {
+        Navigation.NavigateTo("/Facultycouse/"+facultyid); // Replace with your actual route
+
+    }
+
+   
+
+}

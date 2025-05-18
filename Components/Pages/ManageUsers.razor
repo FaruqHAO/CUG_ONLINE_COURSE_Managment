@@ -1,0 +1,250 @@
+﻿@page "/usermanager"
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.DeanRole}")]
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@rendermode InteractiveServer
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+
+@attribute [Authorize]
+
+<PageTitle>Manage Users</PageTitle>
+<AuthorizeView>
+    <section class="section">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <Toasts class="p-3" Messages="messages" AutoHide="true" StackLength="3" Placement="ToastsPlacement.MiddleCenter" />
+                <div class="card-body">
+                    <h5 class="card-title">Admin List</h5>
+                   
+                    <br />  <br />
+                    <input @bind="searchQuery" @bind:event="oninput" type="text" placeholder="Search..." class="form-control  float-end" />
+                    @if (filteredAdmin.Count > 0)
+                    {
+                      
+                        <table class="table datatable">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <b>Fullname</b>
+                                    </th>
+                                    <th>Email</th>
+                                    <th>Contact</th>
+                                    <th>Role</th>
+                                    <th data-type="date" data-format="YYYY/DD/MM">Registration Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (Admin AdminInfo in filteredAdmin)
+                                {
+                                   
+                                    <tr>
+                                        <td>@AdminInfo.Name</td>
+                                        <td>@AdminInfo.Email</td>
+                                        <td>@AdminInfo.Phone</td>
+                                        <td>@AdminInfo.Role</td>
+                                        <td>@AdminInfo.createdOn</td>
+                                        @if (AdminInfo.Role == "superadmin")
+                                        {
+                                            <td>
+                                                    <button type="button" class="btn btn-primary" onclick="window.location.href='viewadmin/@AdminInfo.AdminID'"><i class="bi bi-eye me-1"></i>View</button>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            @if (@AdminInfo.Status == false)
+                                            {
+                                                <td>
+                                                    <button type="button" class="btn btn-primary" onclick="window.location.href='viewadmin/@AdminInfo.AdminID'"><i class="bi bi-eye me-1"></i>View</button>
+                                                    <button type="button" class="btn btn-info" onclick="window.location.href='viewadmin/@AdminInfo.AdminID'"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+                                                    <button type="button" class="btn btn-danger" @onclick="() => DisableUser(AdminInfo.AdminID)"><i class="bi bi-trash me-1"></i>Block </button>
+                                                </td>
+                                            }
+                                            else if (@AdminInfo.Status == true)
+                                            {
+                                                <td>
+                                                    <button type="button" class="btn btn-primary" onclick="window.location.href='viewadmin/@AdminInfo.AdminID'"><i class="bi bi-eye me-1"></i>View</button>
+                                                    <button type="button" class="btn btn-info" onclick="window.location.href='viewadmin/@AdminInfo.AdminID'"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+                                                    <button type="button" class="btn btn-warning" @onclick="() => EnableUser(AdminInfo.AdminID)">
+                                                        <i class=" bi bi-trash me-1">
+                                                        </i>UnBlock</button>
+                                                </td>
+                                            }
+                                            else
+                                            {
+
+                                                <td><span class="badge bg-danger">Error</span></td>
+                                            }
+                                        }
+
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p><em>Loading....</em></p>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+</AuthorizeView>
+<ConfirmDialog @ref="dialog" />
+@code {
+    //get this information of all Admin
+    private List<Admin> admin { get; set; } = new();
+    private List<Admin> filteredAdmin => string.IsNullOrEmpty(searchQuery) ? admin : admin.Where(p =>
+       (p.Name?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+       (p.Email?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+         (p.Role?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+         (p.createdOn.ToString().Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+    (p.Phone.ToString().Contains(searchQuery, StringComparison.OrdinalIgnoreCase))).ToList();
+    private string searchQuery = string.Empty;
+    private ApplicationUser user = default!;
+    List<ToastMessage> messages = new List<ToastMessage>();
+    
+    private ConfirmDialog dialog = default!;
+    private void ShowMessage(ToastType toastType, string title, string message) => messages.Add(CreateToastMessage(toastType, title, message));
+    private ToastMessage CreateToastMessage(ToastType toastType, string title, string message)
+    => new ToastMessage
+        {
+            Type = toastType,
+            Title = title,
+            HelpText = $"{DateTime.Now}",
+            Message = message,
+        };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await FetchAdmin();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching Admin: {ex.Message}");
+        }
+
+
+    }
+
+    private async Task FetchAdmin()
+    {
+        try
+        {
+            admin = await _roleManagerService.GetAllAdmin();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching users: {ex.Message}");
+        }
+    }
+
+    private async Task DisableUser(string userID)
+    {
+        user = await UserManager.FindByIdAsync(userID);
+        var options = new ConfirmDialogOptions { IsVerticallyCentered = true };
+        var confirmation = await dialog.ShowAsync(
+            title: "Warning",
+            message1: "Do you want to Block this User?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+           
+            if (user != null)
+            {
+
+                user.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100);
+                user.status = true;
+                var result = await UserManager.UpdateAsync(user);
+                if (result.Succeeded)
+                {
+                    ShowMessage(ToastType.Success, "SuccessFul", "SuccessFully block Admin ");
+                    await FetchAdmin();
+                    // RedirectManager.RedirectToCurrentPageWithStatus("User has been disabled.", HttpContext);
+                }
+                else
+                {
+                    ShowMessage(ToastType.Danger, "Failed", "Failed to block Admin");
+                    await FetchAdmin();
+                    //  RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to disable user.", HttpContext);
+                }
+            }
+           
+        }
+        else
+        {
+            // do something
+        }
+
+      
+
+
+       
+    }
+
+    private async Task EnableUser(string userID)
+    {
+        user = await UserManager.FindByIdAsync(userID);
+        var options = new ConfirmDialogOptions { IsVerticallyCentered = true };
+        var confirmation = await dialog.ShowAsync(
+            title: "Warning",
+            message1: "Do you want to UnBlock this Admin?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            
+            if (user != null)
+            {
+                user.LockoutEnd = null;
+                user.status = false;
+                var result = await UserManager.UpdateAsync(user);
+                if (result.Succeeded)
+                {
+                    ShowMessage(ToastType.Success, "SuccessFul", "SuccessFully Unblock Admin ");
+                    await FetchAdmin();
+                    
+                }
+                else
+                {
+                    ShowMessage(ToastType.Danger, "Failed", "Failed to block Admin");
+                    await FetchAdmin();
+                   
+                }
+            }
+
+        }
+        else
+        {
+            ShowMessage(ToastType.Danger, "Failed", "Error with this user Account");
+        }
+
+
+
+
+
+    }
+
+}

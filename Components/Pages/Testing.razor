@@ -1,0 +1,44 @@
+﻿@page "/managecourses"
+
+<RadzenGrid AllowFiltering="true" AllowSorting="true" AllowPaging="true" PageSize="10"
+            Data="@courses" TItem="Course" ColumnWidth="200px">
+    <Columns>
+        <RadzenDataGridColumn TItem="Course" Property="Id" Title="ID" Width="80px" />
+        <RadzenDataGridColumn TItem="Course" Property="CourseCode" Title="Course Code" Width="150px" />
+        <RadzenDataGridColumn TItem="Course" Property="CourseName" Title="Course Name" Width="250px" />
+        <RadzenDataGridColumn TItem="Course" Property="Faculty" Title="Faculty" Width="200px" />
+        <RadzenDataGridColumn TItem="Course" Property="AssignedLecturerName" Title="Lecturer" Width="200px" />
+    </Columns>
+</RadzenGrid>
+
+@code {
+    private List<Course> courses = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await LoadCourses();
+        isLoading = false;
+    }
+
+    private async Task LoadCourses()
+    {
+        // Simulate API Call
+        await Task.Delay(500);
+        courses = new List<Course>
+        {
+            new Course { Id = 1, CourseCode = "CS101", CourseName = "Intro to CS", Faculty = "Computer Science", AssignedLecturerName = "Dr. John" },
+            new Course { Id = 2, CourseCode = "CS102", CourseName = "Algorithms", Faculty = "Computer Science", AssignedLecturerName = "Prof. Smith" }
+        };
+    }
+
+    private class Course
+    {
+        public int Id { get; set; }
+        public string CourseCode { get; set; }
+        public string CourseName { get; set; }
+        public string Faculty { get; set; }
+        public string AssignedLecturerName { get; set; }
+    }
+}

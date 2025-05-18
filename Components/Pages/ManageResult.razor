@@ -1,0 +1,115 @@
+﻿@page "/result/{CourseID}"
+@rendermode InteractiveServer
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.LecturerRole}")]
+@inject IRoleService _roleManagerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<ManageRoles> Logger
+<PageTitle>Manage Result</PageTitle>
+<div class="card">
+    <div class="card-header">
+        Courses
+    </div>
+    <div class="card-body">
+        @if (RegisteredUsers == null || !RegisteredUsers.Any())
+        {
+            <p><em>Loading or No student as registered for this course...</em></p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (course, index) in RegisteredUsers.Select((course, i) => (course, i + 1)))
+                    {
+                        <tr>
+
+                            <td>@index</td>
+                            <td>@course.FullName</td>
+                            <td>@course.Email</td>
+                            <td>
+                                <button type="button" class="btn btn-info" @onclick="() => ShowStudentGradeModal(course.Id)"><i class="bi bi-pencil-square me-1"></i>Result</button>
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        }
+        <Modal @ref="modal" />
+
+    </div>
+</div>
+
+
+@code {
+
+
+    [Parameter]
+    public string? CourseID { get; set; }
+
+    List<StudentDto> RegisteredUsers;
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            await FetchFacultyCourse();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching Couses: {ex.Message}");
+        }
+    }
+    private async Task FetchFacultyCourse()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(CourseID))
+            {
+                try
+                {
+
+                    RegisteredUsers = await _roleManagerService.GetStudentsRegisteredForCourse(CourseID);
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error fetching user details: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching users: {ex.Message}");
+        }
+    }
+
+    private Modal modal = default!;
+
+    private async Task ShowStudentGradeModal(string studentId)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "StudentId", studentId },
+            { "CourseId", CourseID! }
+        };
+
+        await modal.ShowAsync<StudentMarkComponent>("Enter Student Mark & Grade",parameters: parameters);
+    }
+}

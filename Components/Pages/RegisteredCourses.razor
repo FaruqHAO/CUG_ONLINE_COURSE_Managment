@@ -1,0 +1,110 @@
+﻿ @page "/registeredcourses"
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.StudentRole}")]
+@rendermode InteractiveServer
+
+@using CUG_ONLINE_COURSES.Components.Account
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+
+
+<div class="card">
+    <div class="card-header">
+                <h4>Registered Course</h4>
+    </div>
+    <div class="card-body">
+
+        @if (courses == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else if (!courses.Any())
+        {
+            <p><em>You have No Registered courses.</em></p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Course Code</th>
+                        <th>Course Name</th>
+                        <th>Faculty</th>
+                       
+                        <th>Duration</th>
+                       
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (course, index) in courses.Select((course, i) => (course, i + 1)))
+                    {
+                        <tr>
+
+                            <td>@index</td>
+                            <td>@course.CourseCode</td>
+                            <td>@course.CourseName</td>
+                            <td>@course.Faculty</td>
+                          
+                            <td>@course.CourseDuration</td>
+
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        }
+
+    </div>
+</div>
+
+
+
+
+@code {
+    List<Course> courses;
+    private string? userId;
+    private bool isLoading = true;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            courses = await _roleManagerService.GetStudentRegisteredCourses(userId);
+
+            if (courses == null)
+            {
+                courses = new List<Course>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error fetching courses: {ex.Message}");
+        }
+        isLoading = false;
+        StateHasChanged(); // Update UI after data is loaded
+
+    }
+  
+
+}

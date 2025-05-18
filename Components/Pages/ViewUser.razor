@@ -1,0 +1,124 @@
+﻿@page "/viewadmin/{AdminId}"
+@using BlazorBootstrap
+@rendermode InteractiveServer
+@using CUG_ONLINE_COURSES.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@using CUG_ONLINE_COURSES.Components.Account
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.DeanRole}")]
+<PageTitle>Edit</PageTitle>
+
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+
+                    <div class="card-body">
+                        <h5 class="card-title">Edit</h5>
+                        <Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.TopRight" />
+                        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" role="alert" />
+                            <div class="form-floating mb-3">
+                                <input type="text" value="@fullName" class="form-control" placeholder="Please Update your name." />
+                                <label for="fullname" class="form-label">Full Name</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" value="@username" class="form-control" placeholder="Please choose your username." disabled />
+                                <label for="username" class="form-label">Username</label>
+                            </div>
+
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
+                                <label for="phone-number" class="form-label">Phone number</label>
+                                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                            </div>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+                        </EditForm>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+
+@code {
+    private ApplicationUser user = default!;
+    private string? username;
+    private string? phoneNumber;
+    private string? fullName;
+    private string? role;
+
+    [Parameter]
+    public string? AdminId { get; set; }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+    List<ToastMessage> messages = new List<ToastMessage>();
+    private void ShowMessage(ToastType toastType, string title, string message) => messages.Add(CreateToastMessage(toastType, title, message));
+
+    private ToastMessage CreateToastMessage(ToastType toastType, string title, string message)
+    => new ToastMessage
+        {
+            Type = toastType,
+            Title = title,
+            HelpText = $"{DateTime.Now}",
+            Message = message,
+        };
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            user = await UserManager.FindByIdAsync(AdminId.ToString());
+            username = await UserManager.GetUserNameAsync(user);
+            phoneNumber = await UserManager.GetPhoneNumberAsync(user);
+            fullName = user.FullName;
+            Input.PhoneNumber ??= phoneNumber;
+            Input.FullName ??= fullName;
+
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (Input.PhoneNumber != phoneNumber)
+        {
+            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+            if (setPhoneResult.Succeeded)
+            {
+                ShowMessage(ToastType.Success, "SuccessFul", "You have succefully Updated::" + user.FullName + "Phone Number");
+            }
+        }
+        if (Input.FullName != fullName)
+        {
+            user.FullName = Input.FullName!;
+            var setFullNameResult = await UserManager.UpdateAsync(user);
+            if (setFullNameResult.Succeeded)
+            {
+                ShowMessage(ToastType.Success, "SuccessFul", "You have succefully Updated" + user.Email + "Name");
+
+            }
+
+        }
+    }
+    private sealed class InputModel
+    {
+        [Phone]
+        [Display(Name = "Phone number")]
+        public string? PhoneNumber { get; set; }
+
+
+        [Display(Name = "FullName")]
+        public string? FullName { get; set; }
+    }
+}

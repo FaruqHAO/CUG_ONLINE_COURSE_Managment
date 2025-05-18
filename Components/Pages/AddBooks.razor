@@ -1,0 +1,352 @@
+﻿@page "/Add-book"
+@rendermode InteractiveServer
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.DeanRole},{AuthenticationInitalData.SecretaryRole}")]
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+@inject FileUploadService FileUploadService
+@inject NavigationManager Navigation
+
+<PageTitle>Add Library Item</PageTitle>
+
+<h3>Add a New Library Item</h3>
+
+<Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.TopRight" />
+
+<EditForm Model="newItem" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <!-- Title and Author Fields -->
+    <div class="mb-3">
+        <label>Title:</label>
+        <InputText @bind-Value="newItem.Title" class="form-control" />
+    </div>
+
+
+    <!-- Category Selection -->
+    <div class="mb-3">
+        <label>Category:</label>
+        <InputSelect @bind-Value="newItem.Category" class="form-control">
+            <option value="Past Question">Past Question</option>
+            <option value="Course Handout">Course Handout</option>
+            <option value="Textbook">Textbook</option>
+            <option value="Lecture Notes">Lecture Notes</option>
+        </InputSelect>
+    </div>
+
+    <!-- Dynamic Form Fields based on selected Category -->
+    @if (newItem.Category == "Past Question")
+    {
+        <div class="mb-3">
+            <label>Course Code for Past Question:</label>
+            <InputText @bind-Value="newItem.CourseCode" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label>Academic Year:</label>
+            <InputText @bind-Value="newItem.AcademicYear" class="form-control" />
+        </div>
+    }
+
+    @if (newItem.Category == "Textbook")
+    {
+        <div class="mb-3">
+            <label>Author Name:</label>
+            <InputText @bind-Value="newItem.Author" class="form-control" />
+        </div>
+
+    }
+
+    @if (newItem.Category == "Course Handout")
+    {
+        <div class="mb-3">
+            <label>Course Code:</label>
+            <InputText @bind-Value="newItem.CourseCode" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label>Faculty:</label>
+            <InputSelect class="form-control" @bind-Value="newItem.Faculty">
+                <option value="">-- Select Faculty --</option>
+                @foreach (var faculty in Faculties)
+                {
+                    <option value="@faculty">@faculty</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => newItem.Faculty)" />
+            </div>
+    }
+
+    <!-- Tags for searching -->
+    <div class="mb-3">
+        <label>Tags (optional):</label>
+        <InputText @bind-Value="newItem.Tags" class="form-control" placeholder="E.g., Math, 2022, Semester 1" />
+    </div>
+
+    <!-- Multiple File Upload Section -->
+    <div class="mb-3">
+        <label>Upload Files:</label>
+        <InputFile OnChange="HandleFileUpload" class="form-control" multiple />
+        <div class="mt-2">
+            @foreach (var file in uploadedFiles)
+            {
+                <div class="d-flex justify-content-between">
+                    <span>@file.Name</span>
+                    <button type="button" class="btn btn-danger btn-sm" @onclick="() => RemoveFile(file)">Remove</button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+    private LibraryItem newItem = new LibraryItem();
+    private List<IBrowserFile> uploadedFiles = new List<IBrowserFile>();
+
+    // Handle file uploads
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles();
+        foreach (var file in files)
+        {
+            uploadedFiles.Add(file);
+        }
+    }
+
+    // Remove file from uploadedFiles list and delete from the server if needed
+    private async Task RemoveFile(IBrowserFile file)
+    {
+        // Remove from the list of uploaded files
+        uploadedFiles.Remove(file);
+
+        // Optionally, remove the file from the server (if uploaded to a specific location)
+        try
+        {
+            var filePath = Path.Combine("wwwroot", "uploads", file.Name); // Example path
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath); // Delete the file from the server
+                Console.WriteLine($"File deleted from server: {filePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting file from server: {ex.Message}");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (uploadedFiles.Any())
+        {
+            newItem.Title = uploadedFiles.First().Name; // Use the first file name as the title
+
+            foreach (var file in uploadedFiles)
+            {
+                using var stream = file.OpenReadStream(50_000_000); // Max 50MB
+                try
+                {
+                    string filePath = await FileUploadService.SaveFileToServerAsync(stream, file.Name, newItem.Category);
+                    if (filePath != null)
+                    {
+                        newItem.FileUrl = filePath;
+                        var response = await _roleManagerService.AddLibraryItemAsync(newItem);
+                        if (response)
+                        {
+                            ShowMessage(ToastType.Success, $"Library Data and File uploaded successfully!");
+                            // Redirect after a short delay
+                            await Task.Delay(1500);
+                            Navigation.NavigateTo("/library");
+                        }
+                        else
+                        {
+                            ShowMessage(ToastType.Danger, $"Library Data Failed!");
+                        }
+                    }
+                    else
+                    {
+                        ShowMessage(ToastType.Danger, $"File Upload Failed!");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage(ToastType.Danger, $"File Upload Failed!:{ex.Message}");
+                    Logger.LogError($"File upload failed: {ex.Message}");
+                }
+            }
+        }
+        else
+        {
+            ShowMessage(ToastType.Danger, "Please select at least one file to upload.");
+        }
+    }
+
+    // Toast message function
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(ToastType toastType, string Alretmessage) => messages.Add(CreateToastMessage(toastType, Alretmessage));
+
+    private ToastMessage CreateToastMessage(ToastType toastType, string Alretmessage)
+        => new ToastMessage
+            {
+                Type = toastType,
+                Title = "Notice",
+                HelpText = $"{DateTime.Now}",
+                Message = $"{Alretmessage}: {DateTime.Now}",
+            };
+
+    private List<string> Faculties = new List<string>
+    {
+        "CEMs", "Nursing", "Education", "RS","EBA",
+
+
+
+    };
+}
+
+
+
+
+@* @page "/Add-book"
+@rendermode InteractiveServer
+@using BlazorBootstrap
+@using CUG_ONLINE_COURSES.Data
+@using CUG_ONLINE_COURSES.Models
+@using CUG_ONLINE_COURSES.Services
+@using CUG_ONLINE_COURSES.Services.RolesServices
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.StudentRole}")]
+@inject IRoleService _roleManagerService
+@inject ILogger<ManageRoles> Logger
+@inject FileUploadService FileUploadService
+@inject NavigationManager Navigation
+
+
+
+
+<PageTitle>Add Library Item</PageTitle>
+
+<h3>Add a New Library Item</h3>
+<Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.TopRight" />
+<EditForm Model="newItem" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label>Title:</label>
+        <InputText @bind-Value="newItem.Title" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Author:</label>
+        <InputText @bind-Value="newItem.Author" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Faculty:</label>
+        <InputText @bind-Value="newItem.Faculty" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Course Code:</label>
+        <InputText @bind-Value="newItem.CourseCode" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Category:</label>
+        <InputSelect @bind-Value="newItem.Category" class="form-control">
+            <option value="Past Question">Past Question</option>
+            <option value="Course Handout">Course Handout</option>
+            <option value="Textbook">Textbook</option>
+        </InputSelect>
+    </div>
+
+    <div class="mb-3">
+        <label>Semester:</label>
+        <InputText @bind-Value="newItem.Semester" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Upload File:</label>
+         <InputFile OnChange="HandleFileUpload" class="form-control" /> 
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+    private LibraryItem newItem = new LibraryItem();
+    private IBrowserFile uploadedFile;
+    
+    private void HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        
+        uploadedFile = e.File;
+
+       
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (uploadedFile != null)
+        {
+            newItem.Title = uploadedFile.Name;
+
+            using var stream = uploadedFile.OpenReadStream(50_000_000); // Max 50MB
+            try
+            {
+                string filePath = await FileUploadService.SaveFileToServerAsync(stream, uploadedFile.Name,newItem.Category);
+                if (filePath != null)
+                {
+                    newItem.FileUrl = filePath;
+                    var response = await _roleManagerService.AddLibraryItemAsync(newItem);
+                    if (response)
+                    {
+                        ShowMessage(ToastType.Success, $"Library Data and File uploaded successfully!");
+                         // Redirect after a short delay
+                        await Task.Delay(1500);
+                        Navigation.NavigateTo("/library");
+                    }
+                    else
+                    {
+                        ShowMessage(ToastType.Danger, $"Library Data Failed!");
+
+                    }
+                }
+                else
+                {
+                    ShowMessage(ToastType.Danger, $"File Upload Failed!");
+                    
+                }
+
+               
+            }
+            catch (Exception ex)
+            {
+                ShowMessage(ToastType.Danger, $"File Upload Failed!:{ex.Message}");
+                Logger.LogError($"File upload failed: {ex.Message}");
+            }
+        }
+
+       // Navigation.NavigateTo("/library");
+    }
+    //Toast message function
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(ToastType toastType, string Alretmessage) => messages.Add(CreateToastMessage(toastType, Alretmessage));
+
+    private ToastMessage CreateToastMessage(ToastType toastType, string Alretmessage)
+    => new ToastMessage
+        {
+            Type = toastType,
+            Title = "Notice",
+            HelpText = $"{DateTime.Now}",
+            Message = $"{Alretmessage}: {DateTime.Now}",
+        };
+} *@
