@@ -47,8 +47,10 @@
                                 @* <button class="btn btn-warning btn-sm" @onclick="() => EditLibraryItem(libitem.Id)">Edit</button> *@
                                 @if (!string.IsNullOrEmpty(libitem.FileUrl))
                                 {
-                                    <a href="@libitem.FileUrl" download="@libitem.Title" class="btn btn-success btn-sm">Download</a>
-                                }
+                                    <a href="@GetDownloadUrl(@libitem.FileUrl)" class="btn btn-sm btn-success">Download</a>
+
+                                   
+                                    }
                                 else
                                 {
                                     <span class="text-danger">No file</span>
@@ -71,7 +73,7 @@
         {
             if (selectedFileUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                <PdfViewer Url="@selectedFileUrl" Height="600px" />
+                <PdfViewer Url="@GetDownloadUrl(selectedFileUrl)" Height="600px" />
             }
             else if (selectedFileUrl.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
             {
@@ -151,5 +153,10 @@
         }
     }
 
+    private string GetDownloadUrl(string fullPath)
+    {
+        var relativePath = fullPath.Replace("/tmp/", "").Replace(" ", "%20");
+        return $"/download/{relativePath}";
+    }
 }
 
