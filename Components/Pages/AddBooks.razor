@@ -6,7 +6,7 @@
 @using CUG_ONLINE_COURSES.Services
 @using CUG_ONLINE_COURSES.Services.RolesServices
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.DeanRole},{AuthenticationInitalData.SecretaryRole}")]
+@attribute [Authorize(Roles = $"{AuthenticationInitalData.SuperAdminRole},{AuthenticationInitalData.LecturerRole},{AuthenticationInitalData.SecretaryRole}")]
 @inject IRoleService _roleManagerService
 @inject ILogger<ManageRoles> Logger
 @inject FileUploadService FileUploadService
